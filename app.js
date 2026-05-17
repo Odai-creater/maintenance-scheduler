@@ -1,6 +1,6 @@
 const express = require('express');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand, ScanCommand, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, PutCommand, ScanCommand, GetCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
@@ -91,11 +91,11 @@ app.patch('/schedules/:id/complete', async (req, res) => {
   const { notes, completedBy } = req.body;
 
   try {
-    // First, find the schedule by scanning (since we use UUID ids)
-    const scanResult = await docClient.send(new ScanCommand({
+    const getResult = await docClient.send(new GetCommand({
       TableName: SCHEDULES_TABLE,
+      Key: { id },
     }));
-    const schedule = (scanResult.Items || []).find(s => s.id === id);
+    const schedule = getResult.Item;
 
     if (!schedule) {
       return res.status(404).json({ error: `Schedule ID ${id} not found` });

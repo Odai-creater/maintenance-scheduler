@@ -1,0 +1,70 @@
+service: maintenance-scheduler
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-northeast-1
+  stage: ${opt:stage, 'prod'}
+  memorySize: 256
+  timeout: 10
+  environment:
+    SCHEDULES_TABLE: ${self:service}-${sls:stage}-schedules
+    HISTORY_TABLE: ${self:service}-${sls:stage}-history
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:UpdateItem
+          Resource:
+            - !GetAtt SchedulesTable.Arn
+            - !GetAtt HistoryTable.Arn
+
+functions:
+  app:
+    handler: handler.handler
+    events:
+      - httpApi:
+          path: /
+          method: GET
+      - httpApi:
+          path: /schedules
+          method: POST
+      - httpApi:
+          path: /schedules
+          method: GET
+      - httpApi:
+          path: /schedules/{id}/complete
+          method: PATCH
+      - httpApi:
+          path: /history
+          method: GET
+
+resources:
+  Resources:
+    SchedulesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-schedules
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+    HistoryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-history
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH

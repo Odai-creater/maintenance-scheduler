@@ -1,12 +1,18 @@
-# Equipment Maintenance Scheduler (On-Premise)
+# Equipment Maintenance Scheduler (AWS Lambda)
 
-A factory equipment preventive maintenance scheduling service currently running on-premise.
-This service will be migrated to AWS Lambda as part of the Devin demo.
+A factory equipment preventive maintenance scheduling service running on AWS Lambda + API Gateway + DynamoDB.
 
 ## Overview
 
 This service manages preventive maintenance schedules for production equipment across Toyota plants.
 It tracks upcoming and overdue maintenance tasks, records completed work, and provides plant-level visibility.
+
+## Architecture
+
+- **AWS Lambda** — Serverless compute for all API endpoints
+- **API Gateway (HTTP API)** — Request routing and HTTPS termination
+- **DynamoDB** — Persistent storage for schedules and maintenance history
+- **Region** — ap-northeast-1 (Tokyo)
 
 ## Endpoints
 
@@ -22,7 +28,7 @@ It tracks upcoming and overdue maintenance tasks, records completed work, and pr
 
 ### Register a maintenance schedule
 ```bash
-curl -X POST http://localhost:3000/schedules \
+curl -X POST https://<api-gateway-url>/schedules \
   -H "Content-Type: application/json" \
   -d '{
     "equipmentId": "EQ-WELD-001",
@@ -36,12 +42,12 @@ curl -X POST http://localhost:3000/schedules \
 
 ### Get overdue maintenance at a plant
 ```bash
-curl "http://localhost:3000/schedules?plantId=PLANT-TAKAOKA&overdue=true"
+curl "https://<api-gateway-url>/schedules?plantId=PLANT-TAKAOKA&overdue=true"
 ```
 
 ### Complete a maintenance task
 ```bash
-curl -X PATCH http://localhost:3000/schedules/1/complete \
+curl -X PATCH https://<api-gateway-url>/schedules/<schedule-id>/complete \
   -H "Content-Type: application/json" \
   -d '{
     "completedBy": "Tanaka Kenji",
@@ -51,25 +57,28 @@ curl -X PATCH http://localhost:3000/schedules/1/complete \
 
 ### Get maintenance history
 ```bash
-curl "http://localhost:3000/history?plantId=PLANT-TAKAOKA"
+curl "https://<api-gateway-url>/history?plantId=PLANT-TAKAOKA"
 ```
 
-## Current Issues (On-Premise)
+## Local Development
 
-- Server running 24/7 across all plants — high energy and maintenance cost
-- No real-time visibility of overdue tasks across plants
-- Cannot handle burst requests during shift changeover or emergency scheduling
-- Single point of failure — server outage means maintenance records are inaccessible
-- Maintenance history lost on server restart (in-memory storage)
-- No automated alerts for overdue maintenance tasks
+```bash
+npm install
+npm start
+```
 
-## Migration Goal
+## Deployment
 
-Migrate to AWS Lambda + DynamoDB to achieve:
+```bash
+npm run deploy
+```
 
-- **Real-time overdue alerts**: Automated notifications for overdue maintenance
+## Migration from On-Premise
+
+This service was migrated from an on-premise Express.js server with in-memory storage to achieve:
+
+- **Durability**: Maintenance records persisted in DynamoDB — never lost
 - **Pay-per-use**: Zero cost during off-shift and holiday periods
 - **Unified visibility**: All plants share a single maintenance schedule view
-- **Durability**: Maintenance records persisted in DynamoDB — never lost
 - **High availability**: 99.95% SLA across all plant locations
 - **Zero ops burden**: No per-plant server management required

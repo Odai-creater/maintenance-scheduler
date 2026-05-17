@@ -12,6 +12,19 @@ const HISTORY_TABLE = process.env.HISTORY_TABLE || 'maintenance-scheduler-prod-h
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'ap-northeast-1' });
 const docClient = DynamoDBDocumentClient.from(client);
 
+async function scanAll(tableName) {
+  const items = [];
+  let lastKey;
+  do {
+    const params = { TableName: tableName };
+    if (lastKey) params.ExclusiveStartKey = lastKey;
+    const result = await docClient.send(new ScanCommand(params));
+    items.push(...(result.Items || []));
+    lastKey = result.LastEvaluatedKey;
+  } while (lastKey);
+  return items;
+}
+
 // Health check
 app.get('/', (req, res) => {
   res.json({
@@ -62,10 +75,7 @@ app.get('/schedules', async (req, res) => {
   const { plantId, status, overdue } = req.query;
 
   try {
-    const result = await docClient.send(new ScanCommand({
-      TableName: SCHEDULES_TABLE,
-    }));
-    let results = result.Items || [];
+    let results = await scanAll(SCHEDULES_TABLE);
 
     // Recompute isOverdue dynamically
     const now = new Date();
@@ -152,10 +162,7 @@ app.get('/history', async (req, res) => {
   const { plantId, equipmentId } = req.query;
 
   try {
-    const result = await docClient.send(new ScanCommand({
-      TableName: HISTORY_TABLE,
-    }));
-    let results = result.Items || [];
+    let results = await scanAll(HISTORY_TABLE);
 
     if (plantId) results = results.filter(r => r.plantId === plantId);
     if (equipmentId) results = results.filter(r => r.equipmentId === equipmentId);
